@@ -7,18 +7,18 @@ if ($request.method.toUpperCase() !== "OPTIONS") {
 
         if (body.cartId) {
             body.cartId = storedCartId;
-            $notification.post("Cart ID 替换成功", `使用 Cart ID: ${storedCartId}`, "");
+            $notification.post("Cart ID reemplazado con éxito", `Usando Cart ID: ${storedCartId}`, "");
         } else {
-            $notification.post("Cart ID 替换失败", "请求体中未找到 cartId", "");
-            console.log("请求体中未找到 cartId，此请求可能不需要替换");
+            $notification.post("Error al reemplazar Cart ID", "No se encontró cartId en el cuerpo de la solicitud", "");
+            console.log("No se encontró cartId en el cuerpo de la solicitud, es posible que esta solicitud no requiera reemplazo");
         }
 
         $done({
             body: JSON.stringify(body)
         });
     } else {
-        $notification.post("Cart ID 提取失败", "没有存储的 cartId 可用于替换", "");
-        console.log("没有存储的 cartId 可用");
+        $notification.post("Error al extraer Cart ID", "No hay un cartId almacenado disponible para reemplazar", "");
+        console.log("No hay un cartId almacenado disponible");
         $done({});
     }
 } else {
