@@ -4,27 +4,27 @@ if ($request.method.toUpperCase() !== "OPTIONS") {
   let url = $request.url;
 
   if (body.market) {
-    body.market = "AR";
+    body.market = "NG";
   }
 
   if (body.locale) {
-    body.locale = "es-AR";
+    body.locale = "en-NG";
   }
 
   if (body.friendlyName) {
     if (url.includes("appId=storeCart")) {
-      body.friendlyName = "cart-save-for-later-AR";
+      body.friendlyName = "cart-save-for-later-NG";
     } else {
-      body.friendlyName = "cart-AR";
+      body.friendlyName = "cart-NG";
     }
   }
 
   if (headers["X-MS-Market"]) {
-    headers["X-MS-Market"] = "AR";
+    headers["X-MS-Market"] = "NG";
   }
 
   if (headers["x-ms-market"]) {
-    headers["x-ms-market"] = "AR";
+    headers["x-ms-market"] = "NG";
   }
 
   $done({
