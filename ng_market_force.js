@@ -1,7 +1,7 @@
-// ng_market_force_v2.js
-// Fuerza market=NG y locale=en-NG en URL y body (incluye niveles anidados como data.market).
-// Reescribe también en peticiones OPTIONS (preflight) y GET sin body.
-// Probado para dominios: www.microsoft.com, buynow.production.store-web.dynamics.com, cart.production.store-web.dynamics.com, emerald.xboxservices.com
+// ng_market_force_v2_nz.js
+// Fuerza market=NZ y locale=en-NZ en URL y body (incluye niveles anidados).
+// Cubre también preflight OPTIONS y GET sin body.
+// Dominios: www.microsoft.com, buynow.production.store-web.dynamics.com, cart.production.store-web.dynamics.com, emerald.xboxservices.com
 
 function deepFix(obj) {
   if (Array.isArray(obj)) {
@@ -12,9 +12,9 @@ function deepFix(obj) {
     for (const k of Object.keys(obj)) {
       const v = obj[k];
       if (k.toLowerCase() === 'market') {
-        obj[k] = 'NG';
+        obj[k] = 'NZ';
       } else if (k.toLowerCase() === 'locale') {
-        obj[k] = 'en-NG';
+        obj[k] = 'en-NZ';
       } else if (v && (typeof v === 'object' || Array.isArray(v))) {
         deepFix(v);
       }
@@ -23,27 +23,25 @@ function deepFix(obj) {
   return obj;
 }
 
-// Reemplazos defensivos cuando el body no es JSON “limpio”
 function replaceInText(body) {
   try {
-    body = body.replace(/"market"\s*:\s*"[^"]*"/gi, '"market":"NG"');
-    body = body.replace(/"locale"\s*:\s*"[^"]*"/gi, '"locale":"en-NG"');
+    body = body.replace(/"market"\s*:\s*"[^"]*"/gi, '"market":"NZ"');
+    body = body.replace(/"locale"\s*:\s*"[^"]*"/gi, '"locale":"en-NZ"');
   } catch (e) {}
   return body;
 }
 
-// Asegurar query market=NG y locale=en-NG en la URL
 function fixUrl(u) {
   try {
     if (u.match(/([?&])market=/i)) {
-      u = u.replace(/([?&])market=[^&]*/i, '$1market=NG');
+      u = u.replace(/([?&])market=[^&]*/i, '$1market=NZ');
     } else {
-      u += (u.includes('?') ? '&' : '?') + 'market=NG';
+      u += (u.includes('?') ? '&' : '?') + 'market=NZ';
     }
     if (u.match(/([?&])locale=/i)) {
-      u = u.replace(/([?&])locale=[^&]*/i, '$1locale=en-NG');
+      u = u.replace(/([?&])locale=[^&]*/i, '$1locale=en-NZ');
     } else {
-      u += (u.includes('?') ? '&' : '?') + 'locale=en-NG';
+      u += (u.includes('?') ? '&' : '?') + 'locale=en-NZ';
     }
   } catch (e) {}
   return u;
@@ -51,16 +49,14 @@ function fixUrl(u) {
 
 if ($request && $request.method) {
   let url = $request.url || '';
-  url = fixUrl(url); // SIEMPRE reescribimos la URL (OPTIONS/GET/POST/PUT)
+  url = fixUrl(url);
 
   const method = $request.method.toUpperCase();
 
-  // Para preflight OPTIONS no hay body que modificar
   if (method === 'OPTIONS') {
     $done({ url });
   } else {
     const headers = $request.headers || {};
-    // Forzar recalcular Content-Length
     delete headers['Content-Length']; delete headers['content-length'];
 
     let bodyStr = $request.body;
@@ -68,11 +64,9 @@ if ($request && $request.method) {
       let fixedBodyStr = bodyStr;
       let parsed = null;
 
-      // 1) Intento JSON directo
       try {
         parsed = JSON.parse(bodyStr);
       } catch (e1) {
-        // 2) URL-encoded con JSON o JSON escapado
         try {
           if (/=/.test(bodyStr) && bodyStr.includes('%7B')) {
             const decoded = decodeURIComponent(bodyStr);
@@ -85,19 +79,16 @@ if ($request && $request.method) {
       }
 
       if (parsed && typeof parsed === 'object') {
-        // Reemplazo profundo
         deepFix(parsed);
-        if (parsed.market !== undefined) parsed.market = 'NG';
-        if (parsed.locale !== undefined) parsed.locale = 'en-NG';
+        if (parsed.market !== undefined) parsed.market = 'NZ';
+        if (parsed.locale !== undefined) parsed.locale = 'en-NZ';
         fixedBodyStr = JSON.stringify(parsed);
       } else {
-        // Reemplazo textual defensivo
         fixedBodyStr = replaceInText(bodyStr);
       }
 
       $done({ url, headers, body: fixedBodyStr });
     } else {
-      // GET/POST sin body: solo URL + headers
       $done({ url, headers });
     }
   }
