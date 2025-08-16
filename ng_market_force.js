@@ -1,6 +1,7 @@
-// ng_market_force.js
-// Fuerza market=NG (incluidos campos anidados como data.market)
-// y locale=en-NG en cualquier nivel del body y en la URL.
+// ng_market_force_v2.js
+// Fuerza market=NG y locale=en-NG en URL y body (incluye niveles anidados como data.market).
+// Reescribe también en peticiones OPTIONS (preflight) y GET sin body.
+// Probado para dominios: www.microsoft.com, buynow.production.store-web.dynamics.com, cart.production.store-web.dynamics.com, emerald.xboxservices.com
 
 function deepFix(obj) {
   if (Array.isArray(obj)) {
@@ -22,6 +23,7 @@ function deepFix(obj) {
   return obj;
 }
 
+// Reemplazos defensivos cuando el body no es JSON “limpio”
 function replaceInText(body) {
   try {
     body = body.replace(/"market"\s*:\s*"[^"]*"/gi, '"market":"NG"');
@@ -30,6 +32,7 @@ function replaceInText(body) {
   return body;
 }
 
+// Asegurar query market=NG y locale=en-NG en la URL
 function fixUrl(u) {
   try {
     if (u.match(/([?&])market=/i)) {
@@ -46,46 +49,60 @@ function fixUrl(u) {
   return u;
 }
 
-if ($request && $request.method && $request.method.toUpperCase() !== 'OPTIONS') {
+if ($request && $request.method) {
   let url = $request.url || '';
-  url = fixUrl(url);
+  url = fixUrl(url); // SIEMPRE reescribimos la URL (OPTIONS/GET/POST/PUT)
 
-  const headers = $request.headers || {};
-  delete headers['Content-Length'];
-  delete headers['content-length'];
+  const method = $request.method.toUpperCase();
 
-  let bodyStr = $request.body;
-
-  if (bodyStr) {
-    let fixedBodyStr = bodyStr;
-    let parsed = null;
-    try {
-      parsed = JSON.parse(bodyStr);
-    } catch (e1) {
-      try {
-        if (/=/.test(bodyStr) && bodyStr.includes('%7B')) {
-          const decoded = decodeURIComponent(bodyStr);
-          const m = decoded.match(/\{[\s\S]*\}$/);
-          if (m) parsed = JSON.parse(m[0]);
-        } else if (bodyStr.startsWith('%7B')) {
-          parsed = JSON.parse(decodeURIComponent(bodyStr));
-        }
-      } catch (e2) {}
-    }
-
-    if (parsed && typeof parsed === 'object') {
-      deepFix(parsed);
-      if (parsed.market !== undefined) parsed.market = 'NG';
-      if (parsed.locale !== undefined) parsed.locale = 'en-NG';
-      fixedBodyStr = JSON.stringify(parsed);
-    } else {
-      fixedBodyStr = replaceInText(bodyStr);
-    }
-
-    $done({ url, headers, body: fixedBodyStr });
+  // Para preflight OPTIONS no hay body que modificar
+  if (method === 'OPTIONS') {
+    $done({ url });
   } else {
-    $done({ url, headers });
+    const headers = $request.headers || {};
+    // Forzar recalcular Content-Length
+    delete headers['Content-Length']; delete headers['content-length'];
+
+    let bodyStr = $request.body;
+    if (bodyStr) {
+      let fixedBodyStr = bodyStr;
+      let parsed = null;
+
+      // 1) Intento JSON directo
+      try {
+        parsed = JSON.parse(bodyStr);
+      } catch (e1) {
+        // 2) URL-encoded con JSON o JSON escapado
+        try {
+          if (/=/.test(bodyStr) && bodyStr.includes('%7B')) {
+            const decoded = decodeURIComponent(bodyStr);
+            const m = decoded.match(/\{[\s\S]*\}$/);
+            if (m) parsed = JSON.parse(m[0]);
+          } else if (bodyStr.startsWith('%7B')) {
+            parsed = JSON.parse(decodeURIComponent(bodyStr));
+          }
+        } catch (e2) {}
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        // Reemplazo profundo
+        deepFix(parsed);
+        if (parsed.market !== undefined) parsed.market = 'NG';
+        if (parsed.locale !== undefined) parsed.locale = 'en-NG';
+        fixedBodyStr = JSON.stringify(parsed);
+      } else {
+        // Reemplazo textual defensivo
+        fixedBodyStr = replaceInText(bodyStr);
+      }
+
+      $done({ url, headers, body: fixedBodyStr });
+    } else {
+      // GET/POST sin body: solo URL + headers
+      $done({ url, headers });
+    }
   }
 } else {
   $done({});
 }
+
+
