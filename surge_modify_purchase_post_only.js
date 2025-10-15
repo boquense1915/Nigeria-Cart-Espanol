@@ -2,9 +2,9 @@
 // Only acts on POST requests to /users/me/orders
 
 const TARGET_PRODUCT = {
-  productId: "9NPH01J3X999",
-  availabilityId: "9XJ4NTJPG9X5",
-  skuId: "0010"
+  productId: "9NPH01J3X999",       // ← Cambia esto
+    availabilityId: "9XJ4NTJPG9X5",  // ← Cambia esto
+    skuId: "0010" 
 };
 
 const ADD_BENEFICIARY = true;
