@@ -1,138 +1,56 @@
-/*
-Script para Surge - Modificar ProductId, AvailabilityId y SkuId
+// surge_modify_purchase.js
+// Reemplaza productId / skuId / availabilityId por los valores pedidos
+const NEW_PRODUCT_ID = "9NPH01J3X999";
+const NEW_SKU_ID = "0010";
+const NEW_AVAILABILITY_ID = "9XJ4NTJPG9X5";
 
-Intercepta las compras de Microsoft Store y reemplaza automáticamente:
-- productId
-- availabilityId
-- skuId
-
-Uso:
-1. Agregar a Surge.conf:
-   [Script]
-   msft_purchase = type=http-request,pattern=^https://purchase\.md\.mp\.microsoft\.com/v7\.0/users/me/orders,requires-body=1,max-size=0,script-path=surge_modify_purchase.js
-
-2. Configurar los IDs deseados abajo
-3. Hacer compra normalmente en el navegador
-*/
-
-// ============= CONFIGURACIÓN =============
-
-// IDs del producto que quieres comprar REALMENTE
-const TARGET_PRODUCT = {
-    productId: "9NPH01J3X999",       // ← Cambia esto
-    availabilityId: "9XJ4NTJPG9X5",  // ← Cambia esto
-    skuId: "0010"                    // ← Cambia esto
-};
-
-// IDs del producto original (opcional: solo para logging)
-const ORIGINAL_PRODUCT = {
-    productId: "ORIGINAL_ID",
-    availabilityId: "ORIGINAL_AVAILABILITY",
-    skuId: "ORIGINAL_SKU"
-};
-
-// Beneficiary (opcional: agregar si no está)
-const ADD_BENEFICIARY = true;
-const BENEFICIARY_MSA_ID = "985155622837686";  // ← Cambia esto
-
-// Logging
-const ENABLE_LOGGING = true;
-
-// ==========================================
-
-function modifyRequest(request) {
-    try {
-        // Solo procesar si tiene body
-        if (!request.body) {
-            log("⚠️ Request sin body, ignorando");
-            return request;
-        }
-
-        // Parsear el body JSON
-        let body = JSON.parse(request.body);
-
-        log("🎯 Interceptado: POST /users/me/orders");
-        log(`📦 Items originales: ${body.items ? body.items.length : 0}`);
-
-        // Verificar que tenga items
-        if (!body.items || body.items.length === 0) {
-            log("⚠️ No hay items en el body");
-            return request;
-        }
-
-        let modified = false;
-
-        // Modificar cada item
-        body.items.forEach((item, index) => {
-            log(`\n--- Item ${index + 1} ---`);
-
-            // Guardar valores originales para logging
-            const original = {
-                productId: item.productId,
-                availabilityId: item.availabilityId,
-                skuId: item.skuId
-            };
-
-            // 1. Modificar productId
-            if (item.productId !== TARGET_PRODUCT.productId) {
-                log(`  productId: ${item.productId} → ${TARGET_PRODUCT.productId}`);
-                item.productId = TARGET_PRODUCT.productId;
-                modified = true;
-            }
-
-            // 2. Modificar availabilityId
-            if (item.availabilityId !== TARGET_PRODUCT.availabilityId) {
-                log(`  availabilityId: ${item.availabilityId} → ${TARGET_PRODUCT.availabilityId}`);
-                item.availabilityId = TARGET_PRODUCT.availabilityId;
-                modified = true;
-            }
-
-            // 3. Modificar skuId
-            if (item.skuId !== TARGET_PRODUCT.skuId) {
-                log(`  skuId: ${item.skuId} → ${TARGET_PRODUCT.skuId}`);
-                item.skuId = TARGET_PRODUCT.skuId;
-                modified = true;
-            }
-
-            // 4. Agregar beneficiary si está habilitado
-            if (ADD_BENEFICIARY && BENEFICIARY_MSA_ID !== "985155622837686") {
-                if (!item.beneficiary) {
-                    item.beneficiary = {
-                        identityType: "Msa",
-                        identityValue: BENEFICIARY_MSA_ID
-                    };
-                    log(`  ✅ Beneficiary agregado: ${BENEFICIARY_MSA_ID}`);
-                    modified = true;
-                } else {
-                    log(`  ℹ️ Beneficiary ya existe: ${item.beneficiary.identityValue}`);
-                }
-            }
-        });
-
-        // Si se modificó algo, actualizar el request
-        if (modified) {
-            request.body = JSON.stringify(body);
-            log("\n✅ Request modificado exitosamente");
-            log("📤 Enviando a Microsoft...");
-        } else {
-            log("\nℹ️ No se requirieron modificaciones");
-        }
-
-        return request;
-
-    } catch (error) {
-        log(`❌ Error: ${error.message}`);
-        log(`Stack: ${error.stack}`);
-        return request;
-    }
+if ($request.method !== "POST") {
+  $done({});
 }
 
-function log(message) {
-    if (ENABLE_LOGGING) {
-        console.log(`[SURGE] ${message}`);
-    }
+if (!$request.body) {
+  console.log("No request body found.");
+  $notification.post('请求体未找到', 'El request no contiene body.', '');
+  $done({});
 }
 
-// Entry point para Surge
-let modifiedRequest = modifyRequest($request);
-$done(modifiedRequest);
+function deepReplace(obj) {
+  if (!obj || typeof obj !== 'object') return;
+
+  if (Array.isArray(obj)) {
+    obj.forEach(item => deepReplace(item));
+    return;
+  }
+
+  if (obj.hasOwnProperty('productId')) obj.productId = NEW_PRODUCT_ID;
+  if (obj.hasOwnProperty('skuId')) obj.skuId = NEW_SKU_ID;
+  if (obj.hasOwnProperty('availabilityId')) obj.availabilityId = NEW_AVAILABILITY_ID;
+
+  if (obj.items && Array.isArray(obj.items)) obj.items.forEach(i => deepReplace(i));
+  if (obj.lineItems && Array.isArray(obj.lineItems)) obj.lineItems.forEach(i => deepReplace(i));
+
+  for (let k in obj) {
+    if (!obj.hasOwnProperty(k)) continue;
+    const v = obj[k];
+    if (typeof v === 'object' && v !== null) deepReplace(v);
+  }
+}
+
+try {
+  let parsed = JSON.parse($request.body);
+  console.log("Original JSON body:", JSON.stringify(parsed));
+  deepReplace(parsed);
+  const modified = JSON.stringify(parsed);
+  console.log("Modified JSON body:", modified);
+  $done({ body: modified });
+} catch (e) {
+  let body = $request.body.toString();
+  console.log("JSON parse failed, using regex fallback.");
+
+  body = body.replace(/("productId"\s*:\s*")([^"]+)(")/g, `$1${NEW_PRODUCT_ID}$3`);
+  body = body.replace(/("availabilityId"\s*:\s*")([^"]+)(")/g, `$1${NEW_AVAILABILITY_ID}$3`);
+  body = body.replace(/("skuId"\s*:\s*")([^"]+)(")/g, `$1${NEW_SKU_ID}$3`);
+
+  console.log("Modified (regex) Body:", body);
+  $done({ body: body });
+}
