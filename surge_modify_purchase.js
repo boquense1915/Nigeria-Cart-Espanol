@@ -19,8 +19,8 @@ Uso:
 
 // IDs del producto que quieres comprar REALMENTE
 const TARGET_PRODUCT = {
-    productId: "9NS86BQ33SPX",       // ← Cambia esto
-    availabilityId: "9RQVSRGBFNGS",  // ← Cambia esto
+    productId: "9NPH01J3X999",       // ← Cambia esto
+    availabilityId: "9XJ4NTJPG9X5",  // ← Cambia esto
     skuId: "0010"                    // ← Cambia esto
 };
 
